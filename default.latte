@@ -1,0 +1,169 @@
+
+{block content}
+		<h2 class="ui teal header">
+			<i class="mail icon"></i>
+			<div class="content">
+				Zprávy a připomínky
+				<div class="sub header">
+					U externích validací je možnost zaslat zprávu či dotaz.
+				</div>
+			</div>
+		</h2>
+		<div n:foreach="$flashes as $flash" n:class="flash, $flash->type">
+			{$flash->message}
+		</div>
+		<div class="ui form">
+			<div class="field">
+				<label>Název externí validace:</label>
+				<select class="ui search dropdown" id="validation">
+					<option value="">Název validace:</option>
+					<option value="all">Všechny</option>
+					{foreach $validations as $id => $validation}
+						<option value="{$id}">{$validation->name}</option>
+					{/foreach}
+				</select>
+			</div>	
+		</div>
+		<div class="ui divider"></div>
+		{snippet messageSnippet}
+			{if $header}
+				<h3 class="ui teal header">
+					<i class="info icon"></i>
+					<div class="content">
+						{$header}
+					</div>
+				</h3>
+			{/if}
+			{if count($messages) != 0}
+				<table class="ui celled selectable table">
+				<thead>
+					<tr>
+						<th>Datum zaslání</th>
+						<th>Název validace</th>
+						<th>Validátor</th>
+						<th>Předmět zprávy</th>
+						<th>Obsah zprávy</th>
+						<th colspan="2">Stav</th>
+					</tr>
+				</thead>
+				<tbody>
+					{foreach $messages as $message}
+						{if $message->solved == 0}
+							<tr style="background-color: rgb(255,232,230);">
+						{else}
+							<tr>
+						{/if}
+							<td>{$message->created|date:'j.n.Y'}</td>
+							<td><a n:href="Validations:detail $message->subvalidations->validations_id">{$message->subvalidations->validations->name}</a></td>
+							<td>{$message->subvalidations->validators->name}</td>
+							<td>{$message->title}</td>
+							<td>{$message->text}</td>
+							{if $message->solved == 0}
+								<td>
+									<a href="#" class="answer" id="{$message->subvalidations_id}" data="{$message->title}" value="{$message->id}"><i class="mail icon" data-content="Odpovědět" data-position="left center"></i></a>
+								</td>
+								<td>
+									<a href="#" class="solve" data="{$message->title}"  id="{$message->id}"><i class="checkmark box icon" data-content="Označit za vyřešené"  data-position="left center"></i></a>
+								</td>
+							{else}
+								<td colspan="2" style="text-align: center;">
+									<i class="checkmark green icon" data-position="left center" data-content="Vyřešil {$message->users->name} ({$message->solved_date|date:'j.n.y'})"></i></a>
+								</td>
+							{/if}
+						</tr>
+					{/foreach}
+				</tbody>
+				</table>
+			{else}
+				<div class="ui orange message">K validaci nejsou zatím žádné zprávy a připomínky od externích validátorů.</div>
+			{/if}
+			<div class="ui modal" id="options-modal">
+				<i class="close icon"></i>
+				<div class="header">
+					<p><i class="help icon"></i><span class="ask"></span></p>
+				</div>
+				<div class="image content">
+					<div class="description">
+						<p class="ask-content"></p>
+						<a n:href="Messages:removeMessage" class="ui green button" id="confirm-remove">Ano</a>
+						<a n:href="Validations:solveMessage" class="ui green button" id="confirm-solve">Ano</a>
+						<a href="#" class="ui red button" id="close-modal">Ne</a>
+					</div>
+				</div>
+			</div>
+		{/snippet}
+
+		<div class="ui modal" id="answer-modal">
+			<i class="close icon"></i>
+			<div class="header">
+				<p><i class="mail icon"></i><span class="ask">Odpověď na zprávu</span></p>
+			</div> 
+			<div class="image content">
+				<div class="description">
+					
+					{form sendAnswerForm class => 'ui form'}
+						<div class="field">
+							{label title/}
+							{input title id => 'titleMessage'}
+						</div>
+						<div class="field">
+							{label text/}
+							{input text}
+						</div>
+						<div class="field">
+							{input send class => 'ui green button'}
+						</div>
+						<input type="hidden" name="subvalidations_id" id="subvalidations_id">
+						<input type="hidden" name="message_id" id="message_id">
+					{/form}
+				</div>
+			</div>
+		</div>
+	
+{/block}
+
+{block scripts}
+	{include parent}
+	<script type="text/javascript">
+
+		$('.ui.dropdown').dropdown();
+		$('.solve').click(function (){
+			$('#confirm-remove').hide();
+			$('#confirm-solve').show();
+			$('.ask').html("Opravdu chcete označit  zprávu - " + $(this).attr('data') + " za vyřešenou?");
+			$('.ask-content').html('Budete tím zodpovědný za případné problémy.');
+			$('#confirm-solve').attr('href', {$basePath} + "/messages/solve-message/" + $(this).attr('id'));
+			$('#options-modal').modal('show');
+		});
+		$('.remove').click(function (){
+			$('#confirm-solve').hide();
+			$('#confirm-remove').show();
+			$('.ask').html("Opravdu chcete smazat tuto zprávu?");
+			$('.ask-content').html('Budete tím zodpovědný za případné problémy.');
+			$('#confirm-remove').attr('href', {$basePath} + "/messages/remove-message/" + $(this).attr('id'));
+			$('#options-modal').modal('show');
+		});
+
+		$('#close-modal').click(function() {
+			$('#options-modal').modal('hide');
+		});
+
+		$('i').popup();
+
+		$('#validation').change(function(){
+			var id = $(this).val();
+			window.location = {$basePath} +"/messages/default/" + id +"?do=validation";
+		});
+
+
+		$('.answer').click(function(){
+			var data = $(this).attr('data');
+			console.log(data[0]);
+			$('#titleMessage').attr('value', 'Odpověd na - ' + $(this).attr('data'));
+			$('#subvalidations_id').attr('value', $(this).attr('id'));
+			$('#message_id').attr('value', $(this).attr('value'));
+			$('#answer-modal').modal('show');
+			console.log($(this).attr('data')[1]);
+		});
+	</script>
+{/block}
